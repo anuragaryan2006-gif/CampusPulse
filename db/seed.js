@@ -32,6 +32,13 @@ async function seed() {
   );
   const teacherUserId = teacherRes.lastID;
 
+  // Teacher user (Kunal Mishra)
+  const kunalRes = await db.run(
+    `INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)`,
+    ['Prof. Kunal Mishra', 'kunallmishra01@gmail.com', defaultPasswordHash, 'teacher']
+  );
+  const kunalUserId = kunalRes.lastID;
+
   // Primary Demo Student (Rahul Kumar)
   const student1Res = await db.run(
     `INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)`,
@@ -60,6 +67,12 @@ async function seed() {
     [teacherUserId, 'EMP-1001', 1]
   );
   const teacherId = teacherEntityRes.lastID;
+
+  const kunalEntityRes = await db.run(
+    `INSERT INTO teachers (user_id, employee_id, department_id) VALUES (?, ?, ?)`,
+    [kunalUserId, 'EMP-1002', 1]
+  );
+  const kunalTeacherId = kunalEntityRes.lastID;
 
   // 4. Students
   await db.run('DELETE FROM students');
@@ -120,7 +133,9 @@ async function seed() {
     (1, 1, ${teacherId}, 'BCA 2nd Year', '09:00 AM – 10:00 AM', 'Lab 301'),
     (2, 2, ${teacherId}, 'BCA 2nd Year', '11:00 AM – 12:00 PM', 'Lab 302'),
     (3, 3, ${teacherId}, 'BCA 2nd Year', '02:00 PM – 03:00 PM', 'Hall B'),
-    (4, 4, ${teacherId}, 'BCA 2nd Year', '04:00 PM – 05:00 PM', 'Lab 304')
+    (4, 4, ${teacherId}, 'BCA 2nd Year', '04:00 PM – 05:00 PM', 'Lab 304'),
+    (5, 1, ${kunalTeacherId}, 'BCA 2nd Year', '10:00 AM – 11:00 AM', 'Lab 301'),
+    (6, 2, ${kunalTeacherId}, 'CS 3rd Year', '01:00 PM – 02:00 PM', 'Room 204')
   `);
 
   // 7. Active Attendance Sessions
@@ -128,6 +143,10 @@ async function seed() {
   const activeSessionRes = await db.run(
     `INSERT INTO attendance_sessions (class_id, teacher_id, start_time, status, qr_code_token) VALUES (?, ?, CURRENT_TIMESTAMP, 'active', 'QR-JAVA-2026-XYZ')`,
     [1, teacherId]
+  );
+  await db.run(
+    `INSERT INTO attendance_sessions (class_id, teacher_id, start_time, status, qr_code_token) VALUES (?, ?, CURRENT_TIMESTAMP, 'active', 'QR-KUNAL-2026-ABC')`,
+    [5, kunalTeacherId]
   );
 
   // 8. Historical Attendance Records for Rahul Kumar

@@ -20,7 +20,10 @@ router.post('/login', async (req, res) => {
     const user = await db.get('SELECT * FROM users WHERE email = ?', [email.toLowerCase().trim()]);
 
     if (!user) {
-      return res.status(401).json({ success: false, message: 'Invalid credentials. User not found.' });
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Invalid credentials. User not found. Please click Register to create your account, or use a Demo Preset below.' 
+      });
     }
 
     const isMatch = await bcrypt.compare(password, user.password_hash);
@@ -70,50 +73,83 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Register (Student registration)
+// Register (Student or Teacher registration)
 router.post('/register', async (req, res) => {
   try {
-    const { name, email, password, student_id, department_id, course, semester } = req.body;
+    const { name, email, password, role = 'student', student_id, employee_id, department_id, course, semester } = req.body;
 
-    if (!name || !email || !password || !student_id) {
-      return res.status(400).json({ success: false, message: 'Please fill in all required fields.' });
+    if (!name || !email || !password) {
+      return res.status(400).json({ success: false, message: 'Please fill in all required fields (Name, Email, Password).' });
     }
 
     const db = await getDb();
 
-    // Check existing
+    // Check existing email
     const existingUser = await db.get('SELECT id FROM users WHERE email = ?', [email.toLowerCase().trim()]);
     if (existingUser) {
       return res.status(400).json({ success: false, message: 'An account with this email already exists.' });
     }
 
-    const existingStudentId = await db.get('SELECT id FROM students WHERE student_id = ?', [student_id.trim()]);
-    if (existingStudentId) {
-      return res.status(400).json({ success: false, message: 'This Student ID is already registered.' });
-    }
-
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const userRes = await db.run(
-      `INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, 'student')`,
-      [name, email.toLowerCase().trim(), hashedPassword]
-    );
+    if (role === 'teacher') {
+      const empId = (employee_id && employee_id.trim()) ? employee_id.trim() : `EMP-${Date.now().toString().slice(-4)}`;
+      const existingEmpId = await db.get('SELECT id FROM teachers WHERE employee_id = ?', [empId]);
+      if (existingEmpId) {
+        return res.status(400).json({ success: false, message: 'This Employee ID is already registered.' });
+      }
 
-    await db.run(
-      `INSERT INTO students (user_id, student_id, department_id, course, semester) VALUES (?, ?, ?, ?, ?)`,
-      [
-        userRes.lastID,
-        student_id.trim(),
-        department_id || 1,
-        course || 'BCA 2nd Year',
-        semester || 3
-      ]
-    );
+      const userRes = await db.run(
+        `INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, 'teacher')`,
+        [name, email.toLowerCase().trim(), hashedPassword]
+      );
 
-    return res.status(201).json({
-      success: true,
-      message: 'Registration successful. You can now log in.'
-    });
+      const teacherRes = await db.run(
+        `INSERT INTO teachers (user_id, employee_id, department_id) VALUES (?, ?, ?)`,
+        [userRes.lastID, empId, department_id || 1]
+      );
+
+      // Assign default class so teacher dashboard has active classes
+      const firstSubject = await db.get('SELECT id FROM subjects LIMIT 1');
+      if (firstSubject) {
+        await db.run(
+          `INSERT INTO classes (subject_id, teacher_id, class_name, schedule_time, classroom) VALUES (?, ?, ?, ?, ?)`,
+          [firstSubject.id, teacherRes.lastID, 'BCA 2nd Year', '10:00 AM – 11:00 AM', 'Lab 301']
+        );
+      }
+
+      return res.status(201).json({
+        success: true,
+        message: 'Teacher registration successful! You can now sign in.'
+      });
+    } else {
+      const stuId = (student_id && student_id.trim()) ? student_id.trim() : `STU-${Date.now().toString().slice(-4)}`;
+      const existingStudentId = await db.get('SELECT id FROM students WHERE student_id = ?', [stuId]);
+      if (existingStudentId) {
+        return res.status(400).json({ success: false, message: 'This Student ID is already registered.' });
+      }
+
+      const userRes = await db.run(
+        `INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, 'student')`,
+        [name, email.toLowerCase().trim(), hashedPassword]
+      );
+
+      await db.run(
+        `INSERT INTO students (user_id, student_id, department_id, course, semester) VALUES (?, ?, ?, ?, ?)`,
+        [
+          userRes.lastID,
+          stuId,
+          department_id || 1,
+          course || 'BCA 2nd Year',
+          semester || 3
+        ]
+      );
+
+      return res.status(201).json({
+        success: true,
+        message: 'Student registration successful! You can now sign in.'
+      });
+    }
   } catch (err) {
     console.error('Registration error:', err);
     return res.status(500).json({ success: false, message: 'Internal server error during registration.' });

@@ -8,11 +8,13 @@ export default function Login() {
   const navigate = useNavigate();
 
   const [isRegistering, setIsRegistering] = useState(false);
+  const [registerRole, setRegisterRole] = useState('student');
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [studentId, setStudentId] = useState('');
+  const [employeeId, setEmployeeId] = useState('');
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -23,17 +25,27 @@ export default function Login() {
 
     try {
       if (isRegistering) {
-        const res = await register({
+        const payload = registerRole === 'teacher' ? {
           name,
           email,
           password,
-          student_id: studentId,
+          role: 'teacher',
+          employee_id: employeeId || undefined,
+          department_id: 1
+        } : {
+          name,
+          email,
+          password,
+          role: 'student',
+          student_id: studentId || undefined,
           course: 'BCA 2nd Year',
           semester: 3
-        });
+        };
+
+        const res = await register(payload);
         if (res.success) {
           setIsRegistering(false);
-          setError('Registration successful! Please log in.');
+          setError('Registration successful! Please sign in with your credentials.');
         } else {
           setError(res.message);
         }
@@ -54,9 +66,10 @@ export default function Login() {
     }
   }
 
-  function fillDemoAccount(demoEmail) {
+  function fillDemoAccount(demoEmail, roleName) {
     setEmail(demoEmail);
     setPassword('password123');
+    setError(`Loaded ${roleName} preset! Tap "Sign In" below.`);
   }
 
   return (
@@ -98,13 +111,13 @@ export default function Login() {
                 isRegistering ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'
               }`}
             >
-              Student Register
+              Register / Sign Up
             </button>
           </div>
 
           {error && (
             <div className={`p-3.5 rounded-2xl text-xs font-medium border ${
-              error.includes('successful')
+              error.includes('successful') || error.includes('Loaded')
                 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
                 : 'bg-red-500/10 text-red-400 border-red-500/20'
             }`}>
@@ -116,27 +129,68 @@ export default function Login() {
             {isRegistering && (
               <>
                 <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-1.5">Register As</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setRegisterRole('student')}
+                      className={`py-2 px-3 text-xs font-bold rounded-xl border transition-all ${
+                        registerRole === 'student'
+                          ? 'bg-indigo-600 text-white border-indigo-500 shadow'
+                          : 'bg-slate-950/60 text-slate-400 border-slate-800 hover:text-white'
+                      }`}
+                    >
+                      🎓 Student
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRegisterRole('teacher')}
+                      className={`py-2 px-3 text-xs font-bold rounded-xl border transition-all ${
+                        registerRole === 'teacher'
+                          ? 'bg-emerald-600 text-white border-emerald-500 shadow'
+                          : 'bg-slate-950/60 text-slate-400 border-slate-800 hover:text-white'
+                      }`}
+                    >
+                      👨‍🏫 Faculty / Teacher
+                    </button>
+                  </div>
+                </div>
+
+                <div>
                   <label className="block text-xs font-medium text-slate-300 mb-1">Full Name</label>
                   <input
                     type="text"
                     required
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="Rahul Kumar"
+                    placeholder={registerRole === 'teacher' ? 'Prof. Kunal Mishra' : 'Rahul Kumar'}
                     className="w-full px-4 py-3 bg-slate-950/80 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">Student ID</label>
-                  <input
-                    type="text"
-                    required
-                    value={studentId}
-                    onChange={(e) => setStudentId(e.target.value)}
-                    placeholder="STU-2026-001"
-                    className="w-full px-4 py-3 bg-slate-950/80 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
+
+                {registerRole === 'student' ? (
+                  <div>
+                    <label className="block text-xs font-medium text-slate-300 mb-1">Student ID</label>
+                    <input
+                      type="text"
+                      value={studentId}
+                      onChange={(e) => setStudentId(e.target.value)}
+                      placeholder="STU-2026-001 (or leave blank to auto-generate)"
+                      className="w-full px-4 py-3 bg-slate-950/80 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-xs font-medium text-slate-300 mb-1">Employee / Faculty ID</label>
+                    <input
+                      type="text"
+                      value={employeeId}
+                      onChange={(e) => setEmployeeId(e.target.value)}
+                      placeholder="EMP-1002 (or leave blank to auto-generate)"
+                      className="w-full px-4 py-3 bg-slate-950/80 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                )}
               </>
             )}
 
@@ -148,7 +202,7 @@ export default function Login() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="student@college.com"
+                  placeholder={registerRole === 'teacher' && isRegistering ? 'teacher@college.com' : 'student@college.com'}
                   className="w-full pl-10 pr-4 py-3 bg-slate-950/80 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
                 <Mail className="w-5 h-5 text-slate-500 absolute left-3 top-3.5" />
@@ -182,7 +236,7 @@ export default function Login() {
               disabled={loading}
               className="w-full py-3.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm shadow-lg shadow-indigo-600/30 transition-all flex items-center justify-center space-x-2 active:scale-[0.99] disabled:opacity-50"
             >
-              <span>{loading ? 'Processing...' : isRegistering ? 'Complete Registration' : 'Sign In'}</span>
+              <span>{loading ? 'Processing...' : isRegistering ? `Register as ${registerRole === 'teacher' ? 'Faculty' : 'Student'}` : 'Sign In'}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
@@ -190,25 +244,25 @@ export default function Login() {
           {/* Quick Demo Presets */}
           {!isRegistering && (
             <div className="pt-4 border-t border-slate-800">
-              <p className="text-[11px] font-bold text-slate-400 mb-2 text-center uppercase tracking-wider">Demo Presets:</p>
+              <p className="text-[11px] font-bold text-slate-400 mb-2 text-center uppercase tracking-wider">Demo Presets (Click to autofill):</p>
               <div className="grid grid-cols-3 gap-2">
                 <button
                   type="button"
-                  onClick={() => fillDemoAccount('student@college.com')}
+                  onClick={() => fillDemoAccount('student@college.com', 'Student')}
                   className="py-2 px-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 text-[11px] font-bold rounded-xl border border-indigo-500/20 transition-colors"
                 >
                   Student
                 </button>
                 <button
                   type="button"
-                  onClick={() => fillDemoAccount('teacher@college.com')}
+                  onClick={() => fillDemoAccount('teacher@college.com', 'Teacher')}
                   className="py-2 px-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 text-[11px] font-bold rounded-xl border border-emerald-500/20 transition-colors"
                 >
                   Teacher
                 </button>
                 <button
                   type="button"
-                  onClick={() => fillDemoAccount('admin@college.com')}
+                  onClick={() => fillDemoAccount('admin@college.com', 'Admin')}
                   className="py-2 px-2 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 text-[11px] font-bold rounded-xl border border-purple-500/20 transition-colors"
                 >
                   Admin
